@@ -22,10 +22,10 @@
 	<!-- העיצוב והלוגיקה של דפי הש"ס החדש; התוכן מוזרק ישירות לדף -->
 	<link href="daf/assets/fonts.css?v=4" type="text/css" rel="stylesheet" />
 	<link href="daf/assets/daf.css?v=5" type="text/css" rel="stylesheet" />
-	<script src="daf/assets/daf.js?v=13" defer></script>
+	<script src="daf/assets/daf.js?v=14" defer></script>
 
 	<script src="code/js/mefarshim.js"></script>
-	<script src="code/js/default.js?v=24"></script>
+	<script src="code/js/default.js?v=25"></script>
 	<!-- הגשר לאפליקציות מארחות (תלמוד AI) — משדר בחירות להורה
 	     ב-postMessage; שקט לחלוטין כשאין מי שמאזין -->
 	<script src="code/js/ai-bridge.js" defer></script>
@@ -57,6 +57,12 @@
 				<div class="px-2" id="mefarshim-bt" data-bs-toggle="modal" data-bs-target="#staticBackdrop"
 					style="cursor: pointer;">
 					<i class="bi bi-blockquote-right" style="font-size: 2rem"></i>
+				</div>
+
+				<!-- הצגה/הסתרה של המפרשים שמסביב לגפ"ת (שוליים ותחתית) -->
+				<div class="px-2" id="surround-bt" onclick="toggleSurround()"
+					style="cursor: pointer;" title="הצגה/הסתרה של המפרשים שמסביב">
+					<i class="bi bi-eye" style="font-size: 2rem"></i>
 				</div>
 
 			</div>

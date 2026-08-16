@@ -100,9 +100,21 @@
       if (mass[k] >= 0.10 * total) gsize = Math.max(gsize, parseFloat(k));
     });
     if (!gsize) return { box: { x0: 200, x1: 450, y0: 60, y1: 700 }, size: 13.7 };
+    var kept = cands.filter(function (ln) {
+      return Math.abs(num(ln, 'size') - gsize) < 0.6;
+    }).sort(function (a, b) {
+      return parseFloat(a.style.top) - parseFloat(b.style.top);
+    });
+    // בדפי פתיחת פרק, דיבור-המתחיל של רש"י/תוספות בראש הדף עשוי להיות
+    // בדיוק בגודל הגמרא — והוא מושך את תקרת הקופסה עשרות נקודות מעל
+    // הגמרא האמיתית (ואיתה את הסיווג של כל מה שביניהן). שורות בודדות
+    // בראש, שרחוקות מהגוש הרציף שמתחתיהן, מושמטות מחישוב הקופסה.
+    var start = 0;
+    while (start < kept.length - 1 &&
+           parseFloat(kept[start + 1].style.top) -
+           parseFloat(kept[start].style.top) > 3 * gsize) start++;
     var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-    cands.forEach(function (ln) {
-      if (Math.abs(num(ln, 'size') - gsize) >= 0.6) return;
+    kept.slice(start).forEach(function (ln) {
       var top = parseFloat(ln.style.top);
       x0 = Math.min(x0, num(ln, 'x0')); x1 = Math.max(x1, num(ln, 'x1'));
       y0 = Math.min(y0, top); y1 = Math.max(y1, top + 1.08 * num(ln, 'size'));
@@ -128,8 +140,14 @@
     var x0 = num(ln, 'x0'), x1 = num(ln, 'x1'), top = parseFloat(ln.style.top);
     var cx = (x0 + x1) / 2, size = num(ln, 'size');
     if (top < 28) return 'header';
-    if (size >= 0.9 * gsize && isSquareLine(ln) &&
-        cx >= gb.x0 - 10 && cx <= gb.x1 + 10) return 'gemara';
+    // תנאי הגובה מונע מדיבורי-המתחיל של רש"י/תוספות שמעל תחילת הגמרא
+    // (בדפי פתיחת פרק) להיבלע באזור הגמרא — גודלם קרוב לגודל הגמרא
+    // (עד ~פי 1.2). מילת הפתיחה המעוטרת של הגמרא עצמה ענקית (פי 2+)
+    // ויושבת הרחק מעל גוף הגמרא — לכן גודל חריג מוחרג מתנאי הגובה.
+    var nearGemX = cx >= gb.x0 - 10 && cx <= gb.x1 + 10;
+    if (isSquareLine(ln) && nearGemX &&
+        (size >= 1.8 * gsize ||
+         (size >= 0.9 * gsize && top >= gb.y0 - 1.5 * gsize))) return 'gemara';
     if (top > gb.y1 + 8) return 'bottom';
     var inGemaraX = cx >= gb.x0 - 10 && cx <= gb.x1 + 10;
     if (gsize && size < 0.65 * gsize && !inGemaraX) {
@@ -357,14 +375,42 @@
 
   // ---------------------------------------------------------------- API
 
-  function runText(nodes) {
-    var out = [];
-    nodes.forEach(function (x) {
-      out.push(x.textContent);
-      var nx = x.nextSibling;
-      if (nx && nx.nodeType === 3 && /\s/.test(nx.textContent)) out.push(' ');
+  // ------------------------------------------- סדר קריאה גיאומטרי
+  // סדר ה-DOM אינו אמין לקריאה רציפה: שורה ויזואלית אחת מפוצלת לא פעם
+  // לכמה קטעי ‎.ln (סביב מילת פתיחה מעוטרת או קישוט), וה-top שלהם שונה
+  // בשבריר נקודה — מיון לפי top לבדו שובר את סדר הקריאה. כאן המילים
+  // ממוינות לפי המיקום בפועל: קיבוץ לשורות בסובלנות של חצי גובה-מילה,
+  // ובתוך שורה מימין לשמאל.
+  function readingOrder(words) {
+    var items = [];
+    words.forEach(function (w) {
+      var r = w.getBoundingClientRect();
+      if (r.height > 0) items.push({ w: w, top: r.top, right: r.right, h: r.height });
     });
-    return out.join('').trim();
+    if (!items.length) return [];
+    var hs = items.map(function (it) { return it.h; }).sort(function (a, b) { return a - b; });
+    var tol = 0.6 * hs[Math.floor(hs.length / 2)];
+    items.sort(function (a, b) { return a.top - b.top; });
+    var rows = [], row = null, rowTop = -1e9;
+    items.forEach(function (it) {
+      if (it.top - rowTop > tol) { row = []; rows.push(row); rowTop = it.top; }
+      row.push(it);
+    });
+    var out = [];
+    rows.forEach(function (r) {
+      r.sort(function (a, b) { return b.right - a.right; });
+      r.forEach(function (it) { out.push(it.w); });
+    });
+    return out;
+  }
+
+  function joinWords(words) {
+    return words.map(function (w) { return w.textContent; })
+      .join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function runText(nodes) {
+    return joinWords(readingOrder(nodes));
   }
 
   var Daf = {
@@ -408,10 +454,7 @@
     zoneText: function (zone) {
       var box = document.querySelector('.zone-' + zone);
       if (!box) return '';
-      return Array.prototype.slice.call(box.querySelectorAll('.ln'))
-        .map(function (ln) {
-          return runText(Array.prototype.slice.call(ln.querySelectorAll('.w')));
-        }).join(' ');
+      return runText(Array.prototype.slice.call(box.querySelectorAll('.w')));
     },
 
     segments: function () {
@@ -540,17 +583,25 @@
     setHover((e.target.dataset && e.target.dataset.seg) || null);
   });
 
-  // העתקה: הדפדפן מכניס שבירת-שורה בין שורות הדף (כל שורה היא div).
-  // כשהבחירה בתוך הדף — מנרמלים לקטע רציף אחד: כל רצף רווחים/שבירות
-  // הופך לרווח בודד. חל רק על בחירה בתוך .daf-page, לא על שאר האפליקציה.
+  // העתקה: הטקסט נבנה מחדש לפי סדר הקריאה הגיאומטרי — לא לפי
+  // sel.toString(), שהולך אחרי סדר ה-DOM ומתבלבל כששורה ויזואלית
+  // מפוצלת לכמה קטעים. נאספות המילים שהבחירה נוגעת בהן, ממוינות
+  // בסדר קריאה, ומחוברות לקטע רציף אחד. מילה שהבחירה נוגעת בחלקה —
+  // נכללת בשלמותה. חל רק על בחירה בתוך .daf-page.
   document.addEventListener('copy', function (e) {
     var sel = window.getSelection();
     if (!sel || sel.isCollapsed || !e.clipboardData) return;
     var node = sel.anchorNode;
     var el = node && (node.nodeType === 1 ? node : node.parentElement);
     if (!el || !el.closest('.daf-page')) return;
-    e.clipboardData.setData('text/plain',
-      sel.toString().replace(/\s+/g, ' ').trim());
+    var range = sel.getRangeAt(0);
+    var picked = [];
+    daf().querySelectorAll('.w').forEach(function (w) {
+      if (range.intersectsNode(w)) picked.push(w);
+    });
+    var text = picked.length ? joinWords(readingOrder(picked))
+      : sel.toString().replace(/\s+/g, ' ').trim();
+    e.clipboardData.setData('text/plain', text);
     e.preventDefault();
   });
 

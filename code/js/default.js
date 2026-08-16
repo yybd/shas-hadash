@@ -313,6 +313,7 @@ function loadDaf(n_masechet, n_daf) {
             host.innerHTML = '';
             host.appendChild(document.adoptNode(page));
             if (window.Daf) Daf.build();           // סיווג אזורים ומקטעים
+            applySurround();                       // מצב הסתרת המפרשים נשמר
             applyDafScale();
         })
         .catch(function (e) {
@@ -322,6 +323,28 @@ function loadDaf(n_masechet, n_daf) {
 }
 
 window.addEventListener('resize', function () { if (!scale) applyDafScale(); });
+
+// ---------------------------------------------------------------------------
+// הצגה/הסתרה של המפרשים שמסביב לגפ"ת — השוליים (עין משפט, מסורת הש"ס,
+// גליון, תורה אור) והתחתית (המשכי רש"י/תוס', רב נסים גאון וכו').
+// המצב נשמר בין הפעלות ומוחל מחדש על כל דף שנטען, כי הדף המוזרק חדש.
+// ---------------------------------------------------------------------------
+var hideSurround = localStorage.getItem('hideSurround') === '1';
+
+function applySurround() {
+    if (!window.Daf || !document.querySelector('.daf-page')) return;
+    ['margin-right', 'margin-left', 'bottom'].forEach(function (z) {
+        hideSurround ? Daf.hide(z) : Daf.show(z);
+    });
+    var ic = document.querySelector('#surround-bt i');
+    if (ic) ic.className = 'bi ' + (hideSurround ? 'bi-eye-slash' : 'bi-eye');
+}
+
+function toggleSurround() {
+    hideSurround = !hideSurround;
+    localStorage.setItem('hideSurround', hideSurround ? '1' : '0');
+    applySurround();
+}
 
 // ---------------------------------------------------------------------------
 // צביטה להגדלה/הקטנה.
