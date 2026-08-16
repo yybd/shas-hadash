@@ -13,6 +13,37 @@
 
 תיקון שנעשה כאן מגיע לשתי האפליקציות עם `git submodule update --remote`.
 
+## נוהל עדכון
+
+עורכים בתוך `public/shas-hadash` של אחד הפרויקטים (זה אותו ריפו):
+
+```bash
+cd public/shas-hadash
+git checkout master          # ראה סעיף detached HEAD למטה
+git add -A && git commit -m "..." && git push
+cd .. && git add public/shas-hadash && git commit -m "עדכון הש\"ס" && git push
+```
+
+ובפרויקט השני:
+
+```bash
+git submodule update --remote public/shas-hadash
+git add public/shas-hadash && git commit -m "עדכון הש\"ס" && git push
+```
+
+## שלושה דברים שחשוב לדעת
+
+1. **שכפול למחשב חדש** — `git clone --recurse-submodules`, או אחרי
+   clone רגיל: `git submodule update --init`. בלי זה `public/shas-hadash`
+   תהיה תיקייה ריקה והאפליקציה לא תיבנה.
+2. **סדר דחיפה** — תמיד לדחוף קודם את ה-submodule ורק אחר כך את
+   הפרויקט. פרויקט שמצביע על קומיט שלא נדחף ייתן שגיאה בכל שכפול,
+   כי הקומיט לא קיים בגיטהאב.
+3. **detached HEAD** — אחרי `git submodule update` התיקייה עומדת "על
+   קומיט", לא על ענף. לפני עריכה: `git checkout master` בתוך
+   `public/shas-hadash`, אחרת הקומיט יישאר תלוש. אם שכחת ועשית קומיט —
+   `git checkout master && git merge <hash-הקומיט>` מציל אותו.
+
 ## המבנה
 
 - `daf/` — דפי הש"ס הדחוסים + `assets/` (גופנים, `daf.css`, `daf.js`).
