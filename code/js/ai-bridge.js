@@ -9,17 +9,14 @@
 (function () {
   'use strict';
 
-  var ZONE_HE = { g: 'גמרא', r: 'רש"י', t: 'תוספות' };
-  var ZONE_BY_NAME = {
-    gemara: 'גמרא', rashi: 'רש"י', tosafot: 'תוספות',
-    'margin-right': 'שוליים', 'margin-left': 'שוליים',
-    header: 'כותרת',
-  };
+  // שמות מדויקים בלבד; כל השאר — עמודות שפוצלו (bottom-1, rashi-1…)
+  // הם מדורי שוליים
   function zoneLabel(zone) {
-    if (!zone) return '';
-    // התחתית מפוצלת לעמודות (bottom, bottom-1…) — כולן "שוליים"
-    if (zone.indexOf('bottom') === 0) return 'שוליים';
-    return ZONE_BY_NAME[zone] || '';
+    if (zone === 'gemara') return 'גמרא';
+    if (zone === 'rashi') return 'רש"י';
+    if (zone === 'tosafot') return 'תוספות';
+    if (zone === 'header') return 'כותרת';
+    return zone ? 'שוליים' : '';
   }
 
   // המצב הגלובלי של default.js: thisMasechet / thisDaf / talmud / a()
@@ -42,11 +39,12 @@
   document.addEventListener('daf:select', function (e) {
     var seg = e.detail && e.detail.seg;
     if (!seg) { post({ type: 'daf-select', seg: null }); return; }
-    // מקטעי התחתית ('b...') — עמודות ההמשך והמדורים הצדדיים
+    // האזור נגזר מהמיקום בפועל של המקטע — לא מקידומת המזהה
+    var el = document.querySelector('[data-seg="' + seg + '"]');
     post(Object.assign({
       type: 'daf-select',
       seg: seg,
-      zone: seg.charAt(0) === 'b' ? 'שוליים' : ZONE_HE[seg.charAt(0)] || '',
+      zone: zoneLabel(window.Daf && el ? window.Daf.zoneOf(el) : null),
       text: window.Daf ? window.Daf.segText(seg) : '',
       gemaraText: window.Daf ? window.Daf.zoneText('gemara') : '',
     }, meta()));

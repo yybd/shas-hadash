@@ -333,8 +333,25 @@
       ln.style.height = (1.15 * num(ln, 'size')) + 'px';
       (byZone[z] = byZone[z] || []).push(ln);
     });
-    // התחתית מפוצלת לעמודות — כל מדור צדדי נעשה אזור נפרד (bottom-1…)
     var zoneNames = ZONES.slice();
+    // גם אזורי רש"י ותוספות עשויים להכיל עמודה פיזית נוספת — מדור
+    // שוליים הכתוב בכתב רש"י בגודל מלא (תוספות רי"ד, מהרש"א וכו'),
+    // שמבחן-הגודל של השוליים מפספס. בלי הפיצול, סדר הקריאה שוזר את
+    // שתי העמודות — והבחירה, המקטעים וההקשר למודל מתערבבים ביניהן.
+    // העמודה הגדולה שומרת את השם; הנוספות ('rashi-1'…) מתויגות בהמשך
+    // כ"מסביב" ומוסתרות עם כפתור העין.
+    ['rashi', 'tosafot'].forEach(function (z) {
+      if (!byZone[z] || byZone[z].length < 2) return;
+      var cs = splitColumns(byZone[z]);
+      if (cs.length < 2) return;
+      cs.sort(function (a, b) { return b.lines.length - a.lines.length; });
+      byZone[z] = cs[0].lines;
+      for (var ci = 1; ci < cs.length; ci++) {
+        byZone[z + '-' + ci] = cs[ci].lines;
+        zoneNames.push(z + '-' + ci);
+      }
+    });
+    // התחתית מפוצלת לעמודות — כל מדור צדדי נעשה אזור נפרד (bottom-1…)
     if (byZone.bottom && byZone.bottom.length > 1) {
       var cols = splitColumns(byZone.bottom);
       if (cols.length > 1) {
@@ -360,8 +377,13 @@
       }).forEach(function (ln) { box.appendChild(ln); });
       d.appendChild(box);
     });
-    if (byZone.rashi) segment(byZone.rashi, 'r', 'rashi');
-    if (byZone.tosafot) segment(byZone.tosafot, 't', 'tosafot');
+    // פילוח רש"י ותוספות — גם לעמודות הנוספות, עם קידומות ייחודיות
+    zoneNames.forEach(function (z) {
+      var m = /^(rashi|tosafot)(?:-(\d+))?$/.exec(z);
+      if (!m || !byZone[z]) return;
+      var p = m[1] === 'rashi' ? 'r' : 't';
+      segment(byZone[z], m[2] ? p + m[2] + '-' : p, m[1]);
+    });
     if (byZone.gemara) segmentGemara(byZone.gemara);
     // המשכי רש"י/תוספות והמדורים הצדדיים שבתחתית — פילוח לדיבורי-
     // המתחיל בכל עמודה בנפרד, עם קידומת מזהה ייחודית לעמודה
@@ -411,6 +433,13 @@
     });
     ['margin-right', 'margin-left'].forEach(function (z) {
       if (!byZone[z]) return;
+      units.push(unitOf(byZone[z], 'surround'));
+      byZone[z].forEach(function (l) { l.classList.add('surround'); });
+    });
+    // העמודות הנוספות שפוצלו מרש"י/תוספות — מדורי שוליים בכתב מלא
+    // (תוספות רי"ד וכד') — שייכות ל"מסביב"
+    zoneNames.forEach(function (z) {
+      if (!/^(rashi|tosafot)-\d+$/.test(z) || !byZone[z]) return;
       units.push(unitOf(byZone[z], 'surround'));
       byZone[z].forEach(function (l) { l.classList.add('surround'); });
     });
