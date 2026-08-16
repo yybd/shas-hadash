@@ -53,24 +53,17 @@
   });
 
   // ---------------------------------------- בחירה חופשית בגרירה
-  document.addEventListener('mouseup', function () {
-    // הבחירה מתעדכנת רק אחרי שאירוע ה-mouseup מסתיים
-    setTimeout(function () {
-      var sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      var node = sel.anchorNode;
-      var el = node && (node.nodeType === 1 ? node : node.parentElement);
-      if (!el || !el.closest('.daf-page')) return;
-      var text = sel.toString().replace(/\s+/g, ' ').trim();
-      if (text.length < 3) return;
-      var zone = window.Daf ? window.Daf.zoneOf(el) : null;
-      post(Object.assign({
-        type: 'daf-selection',
-        zone: zoneLabel(zone),
-        text: text,
-        gemaraText: window.Daf ? window.Daf.zoneText('gemara') : '',
-      }, meta()));
-    }, 0);
+  // daf.js מממש בחירה מותאמת (עמודה אחת, בסדר קריאה) ומשדר את תוצאתה
+  // באירוע daf:selection — לא ב-window.getSelection של הדפדפן.
+  document.addEventListener('daf:selection', function (e) {
+    var d = e.detail || {};
+    if (!d.text || d.text.length < 3) return;
+    post(Object.assign({
+      type: 'daf-selection',
+      zone: zoneLabel(d.zone),
+      text: d.text,
+      gemaraText: window.Daf ? window.Daf.zoneText('gemara') : '',
+    }, meta()));
   });
 
   // ---------------------------------------- דיווח ניווט בין דפים

@@ -50,11 +50,10 @@ span.seghl { background: #f5e59a; border-radius: 2px; }
    העצמאיים שבתחתית, וכותרות המדורים. התיוג נעשה בזמן ריצה ב-daf.js. */
 .daf-page.hide-surround .ln.surround { visibility: hidden; }
 
-/* בזמן גרירת בחירה — הדף כולו נעול ורק אזור המוצא ניתן לבחירה
-   (ראה daf.js, sel-lock). user-select יורש, ולכן הנעילה על הדף
-   מכסה גם את הרווחים שבין השורות. */
-.daf-page.sel-lock { -webkit-user-select: none; user-select: none; }
-.daf-page.sel-lock .zone.sel-src { -webkit-user-select: text; user-select: text; }
+/* הבחירה ממומשת ב-daf.js (ראה csel) — עמודה אחת, בסדר קריאה, זהה בכל
+   מנוע. הבחירה המובנית של הדפדפן כבויה בדף כדי שלא תתחרה בה. */
+.daf-page { -webkit-user-select: none; user-select: none; }
+span.selhl { background: #cddcf3; border-radius: 2px; }
 
 /* מכולות האזורים — נבנות בזמן ריצה, ללא השפעה על הפריסה */
 .zone { position: static; }

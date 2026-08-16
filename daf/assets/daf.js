@@ -591,21 +591,14 @@
     return best ? best.dataset.seg : null;
   }
 
-  document.addEventListener('click', function (e) {
-    if (!window.getSelection().isCollapsed) return;   // לא בזמן גרירה
-    var seg = segAt(e);
-    if (!seg) return;
-    Daf.select(Daf.selected() === seg ? null : seg);
-  });
-
-  // ------------------------------ הגבלת בחירת-גרירה לאזור שבו התחילה
-  // הדף בנוי שכבות אבסולוטיות, ובחירת הדפדפן הולכת לפי סדר ה-DOM:
-  // ברגע שנקודת הסיום נופלת מחוץ לעמודת המוצא — על עמודה שכנה, או אפילו
-  // על הרווח שבין שורות (ששייך ל-daf-page, כי לאזורים אין גיאומטריה) —
-  // נבחרות שורות שלמות של מדורים אחרים. לכן בזמן גרירה כל הדף ננעל
-  // לבחירה (user-select: none) ורק אזור המוצא נשאר פתוח, והבחירה
-  // נשארת בעמודה אחת — כמו שהעין קוראת. (עכבר בלבד; במגע אין גרירת
-  // בחירה רציפה ממילא.)
+  // ------------------------- בחירה מותאמת — עמודה אחת, בסדר קריאה
+  // הבחירה המובנית של הדפדפן אינה שמישה בדף הזה: המבנה אבסולוטי, סדר
+  // ה-DOM שונה מסדר הקריאה, ו-user-select מתנהג אחרת בכל מנוע (בפרט
+  // WebKit באפליקציית המק). לכן הבחירה ממומשת כאן במלואה: הלחיצה קובעת
+  // את העמודה ואת מילת העוגן, והגרירה בוחרת טווח רציף בסדר הקריאה עד
+  // המילה הקרובה לסמן — שמחושבת תמיד רק מתוך מילות אותה עמודה, ולכן
+  // חריגה לעמודה שכנה בלתי אפשרית מבנית. ההעתקה (⌘C) וחלון הלימוד
+  // קוראים מהמודל הזה, לא מ-window.getSelection.
 
   // האזור שבנקודה: המילה שתחתיה, ואם הסמן ברווח — השורה הקרובה ביותר
   function zoneAtPoint(x, y) {
@@ -623,28 +616,88 @@
     return best ? best.closest('.zone') : null;
   }
 
-  function unlockSelection() {
-    var d = daf();
-    if (!d) return;
-    d.classList.remove('sel-lock');
-    d.querySelectorAll('.zone.sel-src').forEach(function (z) {
-      z.classList.remove('sel-src');
+  var csel = { words: null, zone: null, a: -1, f: -1,
+               active: false, drag: false, sx: 0, sy: 0 };
+
+  function cselClear() {
+    if (csel.words) {
+      csel.words.forEach(function (w) { w.classList.remove('selhl'); });
+    }
+    csel.words = null; csel.zone = null; csel.a = csel.f = -1;
+    csel.active = false; csel.drag = false;
+  }
+
+  // המילה הקרובה לנקודה מתוך מילות העמודה; מרחק אנכי שוקל כפול, כדי
+  // שסמן שבין שורות ייתפס לשורה הקרובה ולא למילה רחוקה באותו גובה
+  function nearestIdx(words, x, y) {
+    var best = -1, bd = Infinity;
+    for (var i = 0; i < words.length; i++) {
+      var r = words[i].getBoundingClientRect();
+      var dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
+      var dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+      var d = dx * dx + 4 * dy * dy;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+
+  function cselApply() {
+    var lo = Math.min(csel.a, csel.f), hi = Math.max(csel.a, csel.f);
+    csel.words.forEach(function (w, i) {
+      w.classList.toggle('selhl', i >= lo && i <= hi);
     });
   }
 
+  function cselText() {
+    if (!csel.active || !csel.words) return '';
+    var lo = Math.min(csel.a, csel.f), hi = Math.max(csel.a, csel.f);
+    return joinWords(csel.words.slice(lo, hi + 1));
+  }
+
   document.addEventListener('mousedown', function (e) {
-    unlockSelection();                    // נעילה קודמת שלא שוחררה
     if (e.button !== 0) return;
+    cselClear();
     if (!e.target.closest || !e.target.closest('.daf-page')) return;
-    var d = daf();
-    if (!d) return;
-    // נועלים את כל הדף; אזור המוצא — אם נמצא — נשאר פתוח לבחירה.
-    // התחלה הרחק מכל טקסט משאירה את הדף נעול כולו, ואין בחירת-סרק.
     var z = zoneAtPoint(e.clientX, e.clientY);
-    if (z) z.classList.add('sel-src');
-    d.classList.add('sel-lock');
+    if (!z) return;
+    csel.zone = z;
+    csel.words = readingOrder([].slice.call(z.querySelectorAll('.w')));
+    csel.a = csel.f = nearestIdx(csel.words, e.clientX, e.clientY);
+    csel.sx = e.clientX; csel.sy = e.clientY;
+    // הבחירה מופעלת רק אחרי תזוזה ממשית — לחיצה נשארת לחיצה
   });
-  document.addEventListener('mouseup', unlockSelection);
+
+  document.addEventListener('mousemove', function (e) {
+    if (!csel.words || csel.a < 0 || e.buttons !== 1) return;
+    if (!csel.drag) {
+      if (Math.abs(e.clientX - csel.sx) + Math.abs(e.clientY - csel.sy) < 5) return;
+      csel.drag = true;
+      csel.active = true;
+    }
+    csel.f = nearestIdx(csel.words, e.clientX, e.clientY);
+    cselApply();
+  });
+
+  document.addEventListener('mouseup', function () {
+    if (!csel.active) return;
+    document.dispatchEvent(new CustomEvent('daf:selection', {
+      detail: {
+        zone: csel.zone ? csel.zone.dataset.zone : null,
+        text: cselText(),
+      },
+    }));
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') cselClear();
+  });
+
+  document.addEventListener('click', function (e) {
+    if (csel.active) return;              // סיום גרירה אינו לחיצה
+    var seg = segAt(e);
+    if (!seg) return;
+    Daf.select(Daf.selected() === seg ? null : seg);
+  });
 
   // ריחוף: הדגשה קלה של כל המקטע שהעכבר מעליו, כדי שיהיה ברור מה ייבחר
   var hovSeg = null;
@@ -660,28 +713,16 @@
     }
   }
   document.addEventListener('mouseover', function (e) {
+    if (csel.drag) return;                // לא באמצע גרירת בחירה
     setHover((e.target.dataset && e.target.dataset.seg) || null);
   });
 
-  // העתקה: הטקסט נבנה מחדש לפי סדר הקריאה הגיאומטרי — לא לפי
-  // sel.toString(), שהולך אחרי סדר ה-DOM ומתבלבל כששורה ויזואלית
-  // מפוצלת לכמה קטעים. נאספות המילים שהבחירה נוגעת בהן, ממוינות
-  // בסדר קריאה, ומחוברות לקטע רציף אחד. מילה שהבחירה נוגעת בחלקה —
-  // נכללת בשלמותה. חל רק על בחירה בתוך .daf-page.
+  // העתקה: מהמודל של הבחירה המותאמת — הטקסט כבר בסדר קריאה נכון.
+  // מחוץ לדף (או בלי בחירה) — התנהגות הדפדפן הרגילה.
   document.addEventListener('copy', function (e) {
-    var sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !e.clipboardData) return;
-    var node = sel.anchorNode;
-    var el = node && (node.nodeType === 1 ? node : node.parentElement);
-    if (!el || !el.closest('.daf-page')) return;
-    var range = sel.getRangeAt(0);
-    var picked = [];
-    daf().querySelectorAll('.w').forEach(function (w) {
-      if (range.intersectsNode(w)) picked.push(w);
-    });
-    var text = picked.length ? joinWords(readingOrder(picked))
-      : sel.toString().replace(/\s+/g, ' ').trim();
-    e.clipboardData.setData('text/plain', text);
+    var t = cselText();
+    if (!t || !e.clipboardData) return;
+    e.clipboardData.setData('text/plain', t);
     e.preventDefault();
   });
 
