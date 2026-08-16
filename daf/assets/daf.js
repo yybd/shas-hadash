@@ -24,7 +24,7 @@
 
   // מוצג בסרגל (span#daf-ver) — כדי שאפשר יהיה לדעת בוודאות איזו
   // גרסת מציג רצה בפועל, בלי לנחש מול מטמונים והתקנות.
-  var DAF_VERSION = 18;
+  var DAF_VERSION = 19;
 
   var ZONES = ['header', 'gemara', 'rashi', 'tosafot',
                'margin-right', 'margin-left', 'bottom'];
@@ -624,109 +624,18 @@
     return best ? best.dataset.seg : null;
   }
 
-  // ------------------------- בחירה מותאמת — עמודה אחת, בסדר קריאה
-  // הבחירה המובנית של הדפדפן אינה שמישה בדף הזה: המבנה אבסולוטי, סדר
-  // ה-DOM שונה מסדר הקריאה, ו-user-select מתנהג אחרת בכל מנוע (בפרט
-  // WebKit באפליקציית המק). לכן הבחירה ממומשת כאן במלואה: הלחיצה קובעת
-  // את העמודה ואת מילת העוגן, והגרירה בוחרת טווח רציף בסדר הקריאה עד
-  // המילה הקרובה לסמן — שמחושבת תמיד רק מתוך מילות אותה עמודה, ולכן
-  // חריגה לעמודה שכנה בלתי אפשרית מבנית. ההעתקה (⌘C) וחלון הלימוד
-  // קוראים מהמודל הזה, לא מ-window.getSelection.
-
-  // האזור שבנקודה: המילה שתחתיה, ואם הסמן ברווח — השורה הקרובה ביותר
-  function zoneAtPoint(x, y) {
-    var el = document.elementFromPoint(x, y);
-    var z = el && el.closest ? el.closest('.zone') : null;
-    if (z) return z;
-    var best = null, bd = 40 * 40;        // עד 40px מהשורה הקרובה
-    document.querySelectorAll('.daf-page .ln').forEach(function (ln) {
-      var r = ln.getBoundingClientRect();
-      var dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
-      var dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
-      var d2 = dx * dx + dy * dy;
-      if (d2 < bd) { bd = d2; best = ln; }
-    });
-    return best ? best.closest('.zone') : null;
-  }
-
-  var csel = { words: null, zone: null, a: -1, f: -1,
-               active: false, drag: false, sx: 0, sy: 0 };
-
-  function cselClear() {
-    if (csel.words) {
-      csel.words.forEach(function (w) { w.classList.remove('selhl'); });
-    }
-    csel.words = null; csel.zone = null; csel.a = csel.f = -1;
-    csel.active = false; csel.drag = false;
-  }
-
-  // המילה הקרובה לנקודה מתוך מילות העמודה; מרחק אנכי שוקל כפול, כדי
-  // שסמן שבין שורות ייתפס לשורה הקרובה ולא למילה רחוקה באותו גובה
-  function nearestIdx(words, x, y) {
-    var best = -1, bd = Infinity;
-    for (var i = 0; i < words.length; i++) {
-      var r = words[i].getBoundingClientRect();
-      var dx = x < r.left ? r.left - x : x > r.right ? x - r.right : 0;
-      var dy = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
-      var d = dx * dx + 4 * dy * dy;
-      if (d < bd) { bd = d; best = i; }
-    }
-    return best;
-  }
-
-  function cselApply() {
-    var lo = Math.min(csel.a, csel.f), hi = Math.max(csel.a, csel.f);
-    csel.words.forEach(function (w, i) {
-      w.classList.toggle('selhl', i >= lo && i <= hi);
-    });
-  }
-
-  function cselText() {
-    if (!csel.active || !csel.words) return '';
-    var lo = Math.min(csel.a, csel.f), hi = Math.max(csel.a, csel.f);
-    return joinWords(csel.words.slice(lo, hi + 1));
-  }
-
-  document.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
-    cselClear();
-    if (!e.target.closest || !e.target.closest('.daf-page')) return;
-    var z = zoneAtPoint(e.clientX, e.clientY);
-    if (!z) return;
-    csel.zone = z;
-    csel.words = readingOrder([].slice.call(z.querySelectorAll('.w')));
-    csel.a = csel.f = nearestIdx(csel.words, e.clientX, e.clientY);
-    csel.sx = e.clientX; csel.sy = e.clientY;
-    // הבחירה מופעלת רק אחרי תזוזה ממשית — לחיצה נשארת לחיצה
-  });
-
-  document.addEventListener('mousemove', function (e) {
-    if (!csel.words || csel.a < 0 || e.buttons !== 1) return;
-    if (!csel.drag) {
-      if (Math.abs(e.clientX - csel.sx) + Math.abs(e.clientY - csel.sy) < 5) return;
-      csel.drag = true;
-      csel.active = true;
-    }
-    csel.f = nearestIdx(csel.words, e.clientX, e.clientY);
-    cselApply();
-  });
-
-  document.addEventListener('mouseup', function () {
-    if (!csel.active) return;
-    document.dispatchEvent(new CustomEvent('daf:selection', {
-      detail: {
-        zone: csel.zone ? csel.zone.dataset.zone : null,
-        text: cselText(),
-      },
-    }));
-  });
+  // ---------------------- בחירה לפי מקטעים בלבד — קשיח ויציב
+  // גרירה חופשית בוטלה במכוון: בדף בנוי-שכבות אין דרך אמינה לגרור
+  // בחירה בין מנועי דפדפן שונים בלי שטקסט זר ייכנס. הבחירה היחידה
+  // היא מקטע שלם — דיבור-המתחיל ברש"י/תוספות/מדורי התחתית, או מאמר
+  // בגמרא — בלחיצה. המקטעים מחושבים מראש בתוך עמודה אחת, ולכן
+  // התוצאה דטרמיניסטית לחלוטין. ⌘C מעתיק את המקטע הנבחר; Esc מנקה.
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') cselClear();
+    if (e.key === 'Escape') Daf.select(null);
   });
 
   document.addEventListener('click', function (e) {
-    if (csel.active) return;              // סיום גרירה אינו לחיצה
     var seg = segAt(e);
     if (!seg) return;
     Daf.select(Daf.selected() === seg ? null : seg);
@@ -750,12 +659,12 @@
     setHover((e.target.dataset && e.target.dataset.seg) || null);
   });
 
-  // העתקה: מהמודל של הבחירה המותאמת — הטקסט כבר בסדר קריאה נכון.
-  // מחוץ לדף (או בלי בחירה) — התנהגות הדפדפן הרגילה.
+  // העתקה: ⌘C מעתיק את המקטע הנבחר, בסדר קריאה נכון.
+  // בלי מקטע נבחר — התנהגות הדפדפן הרגילה (מחוץ לדף).
   document.addEventListener('copy', function (e) {
-    var t = cselText();
-    if (!t || !e.clipboardData) return;
-    e.clipboardData.setData('text/plain', t);
+    var seg = Daf.selected();
+    if (!seg || !e.clipboardData) return;
+    e.clipboardData.setData('text/plain', Daf.segText(seg));
     e.preventDefault();
   });
 
