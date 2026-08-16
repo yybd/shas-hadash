@@ -22,6 +22,10 @@
 (function () {
   'use strict';
 
+  // מוצג בסרגל (span#daf-ver) — כדי שאפשר יהיה לדעת בוודאות איזו
+  // גרסת מציג רצה בפועל, בלי לנחש מול מטמונים והתקנות.
+  var DAF_VERSION = 18;
+
   var ZONES = ['header', 'gemara', 'rashi', 'tosafot',
                'margin-right', 'margin-left', 'bottom'];
   var SQUARE = { 'sq': 1, 'sqs': 1, 'bd': 1, 'dh': 1, 'to': 1 };
@@ -754,6 +758,9 @@
     e.clipboardData.setData('text/plain', t);
     e.preventDefault();
   });
+
+  var verEl = document.getElementById('daf-ver');
+  if (verEl) verEl.textContent = 'ג' + DAF_VERSION;
 
   build();
   ensureFonts().then(Daf.fit);
