@@ -1,0 +1,1 @@
+loadedGmaraText("<html><head>    <meta charset=\"utf-8\" /><link href=\"../../css/default.css\" type=\"text/css\" rel=\"stylesheet\" /></head><body><b>גמרא</b><br><hr><b>רש״י </b><br><hr><b>תוספות</b><br></body></html>");
