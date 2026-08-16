@@ -46,6 +46,10 @@ span[data-seg] { cursor: pointer; }
 span.seghov { background: #f7f0cd; border-radius: 2px; }
 span.seghl { background: #f5e59a; border-radius: 2px; }
 
+/* כפתור העין — הסתרת כל מה שמסביב לגפ"ת: השוליים והמשכיהם, המדורים
+   העצמאיים שבתחתית, וכותרות המדורים. התיוג נעשה בזמן ריצה ב-daf.js. */
+.daf-page.hide-surround .ln.surround { visibility: hidden; }
+
 /* בזמן גרירת בחירה — הדף כולו נעול ורק אזור המוצא ניתן לבחירה
    (ראה daf.js, sel-lock). user-select יורש, ולכן הנעילה על הדף
    מכסה גם את הרווחים שבין השורות. */

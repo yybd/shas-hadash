@@ -370,6 +370,86 @@
       if (z.indexOf('bottom') !== 0 || !byZone[z]) return;
       segment(byZone[z], z === 'bottom' ? 'b' : 'b' + z.slice(7) + '-', z);
     });
+
+    // ------------------- תיוג "מסביב" (surround) — מה שכפתור העין מסתיר
+    // גלויים תמיד: גמרא, רש"י, תוספות — והמשכיהם שבתחתית. מוסתרים:
+    // השוליים והמשכיהם, המדורים העצמאיים (רב נסים גאון וכו'), וכותרות
+    // המדורים שיושבות באזור הכותרת מעל רצועת השוליים.
+    // הגודל הדומיננטי על פני כל המילים — בלי סינון סוג-כתב: מדורים
+    // כמו רב נסים גאון מקודדים בגופן שההיוריסטיקה של bodySize מחשיבה
+    // "מרובע", וההיסטוגרמה שלה יוצאת שם ריקה ומחזירה ברירת מחדל שגויה.
+    function domSize(lines2) {
+      var acc = {};
+      lines2.forEach(function (ln) {
+        ln.querySelectorAll('.w').forEach(function (w) {
+          var k = wsize(w).toFixed(1);
+          acc[k] = (acc[k] || 0) + w.textContent.length;
+        });
+      });
+      var best = 0, bv = -1;
+      Object.keys(acc).forEach(function (k) {
+        if (acc[k] > bv) { bv = acc[k]; best = parseFloat(k); }
+      });
+      return best;
+    }
+
+    function unitOf(lines2, family) {
+      var u = { x0: 1e9, x1: -1e9, top: 1e9, bot: -1e9,
+                family: family, body: domSize(lines2) };
+      lines2.forEach(function (l) {
+        u.x0 = Math.min(u.x0, num(l, 'x0'));
+        u.x1 = Math.max(u.x1, num(l, 'x1'));
+        var t = parseFloat(l.style.top);
+        u.top = Math.min(u.top, t);
+        u.bot = Math.max(u.bot, t);
+      });
+      return u;
+    }
+    var units = [];
+    ['rashi', 'tosafot'].forEach(function (z) {
+      if (byZone[z]) units.push(unitOf(byZone[z], 'gefet'));
+    });
+    ['margin-right', 'margin-left'].forEach(function (z) {
+      if (!byZone[z]) return;
+      units.push(unitOf(byZone[z], 'surround'));
+      byZone[z].forEach(function (l) { l.classList.add('surround'); });
+    });
+    // כותרות המדורים בראש הדף — בתוך רצועת ה-x של אחד השוליים
+    if (byZone.header) byZone.header.forEach(function (l) {
+      var inBand = units.some(function (u) {
+        return u.family === 'surround' &&
+               num(l, 'x0') >= u.x0 - 12 && num(l, 'x1') <= u.x1 + 12;
+      });
+      if (inBand) l.classList.add('surround');
+    });
+    // עמודת תחתית שמתחילה מיד מתחת ליחידה קיימת וחופפת אותה אופקית
+    // היא המשך שלה ויורשת את משפחתה; עמודה בלי הורה צמוד היא מדור
+    // עצמאי. העמודות נבדקות מלמעלה למטה כדי שהמשך-של-המשך ישתרשר.
+    var cols = zoneNames.filter(function (z) {
+      return z.indexOf('bottom') === 0 && byZone[z];
+    }).map(function (z) {
+      var u = unitOf(byZone[z], null);
+      u.zone = z;
+      return u;
+    }).sort(function (a, b) { return a.top - b.top; });
+    cols.forEach(function (col) {
+      var w = col.x1 - col.x0, best = null, bestOv = 0;
+      units.forEach(function (u) {
+        var gap = col.top - u.bot;
+        if (gap < -2 || gap > 4 * gsize) return;
+        // המשך אמיתי כתוב באותו גוף-כתב; מדור חדש (רב נסים גאון —
+        // 6.7 מול 11.2 של תוספות) נפסל גם כשהוא צמוד וחופף.
+        if (Math.abs(col.body - u.body) > 1.5) return;
+        var ov = (Math.min(col.x1, u.x1) - Math.max(col.x0, u.x0)) / w;
+        if (ov >= 0.55 && ov > bestOv) { bestOv = ov; best = u; }
+      });
+      col.family = best ? best.family : 'surround';
+      if (col.family === 'surround') {
+        byZone[col.zone].forEach(function (l) { l.classList.add('surround'); });
+      }
+      units.push(col);
+    });
+
     d.dataset.ready = '1';
   }
 

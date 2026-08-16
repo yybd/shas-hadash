@@ -333,9 +333,10 @@ var hideSurround = localStorage.getItem('hideSurround') === '1';
 
 function applySurround() {
     if (!window.Daf || !document.querySelector('.daf-page')) return;
-    ['margin-right', 'margin-left', 'bottom'].forEach(function (z) {
-        hideSurround ? Daf.hide(z) : Daf.show(z);
-    });
+    // התיוג עצמו נעשה ב-daf.js: 'surround' מסומן על השוליים והמשכיהם,
+    // על המדורים העצמאיים שבתחתית ועל כותרותיהם — אך לא על המשכי
+    // רש"י/תוספות, שנשארים גלויים גם במצב הדף הנקי.
+    hideSurround ? Daf.hide('surround') : Daf.show('surround');
     var ic = document.querySelector('#surround-bt i');
     if (ic) ic.className = 'bi ' + (hideSurround ? 'bi-eye-slash' : 'bi-eye');
 }
