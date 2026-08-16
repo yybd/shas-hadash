@@ -24,7 +24,7 @@
 
   // מוצג בסרגל (span#daf-ver) — כדי שאפשר יהיה לדעת בוודאות איזו
   // גרסת מציג רצה בפועל, בלי לנחש מול מטמונים והתקנות.
-  var DAF_VERSION = 19;
+  var DAF_VERSION = 20;
 
   var ZONES = ['header', 'gemara', 'rashi', 'tosafot',
                'margin-right', 'margin-left', 'bottom'];
@@ -246,12 +246,17 @@
       if (inter <= 0) return 0;
       return inter / (Math.max(a.x1, b.x1) - Math.min(a.x0, b.x0));
     }
+    // מיזוג רק בין שורות באותו גוף-כתב: מדורים שונים הערומים אנכית
+    // באותו רוחב (המשך רש"י 11.2 ומתחתיו המשך רב נסים 7.0) הם עמודות
+    // נפרדות — חפיפת ה-x לבדה הייתה ממזגת אותם לאשכול אחד.
+    function sameSize(a, b) { return Math.abs(a.size - b.size) <= 1.5; }
     var groups = [];
     lines.forEach(function (ln) {
-      var box = { x0: num(ln, 'x0'), x1: num(ln, 'x1'), lines: [ln] };
+      var box = { x0: num(ln, 'x0'), x1: num(ln, 'x1'),
+                  size: num(ln, 'size'), lines: [ln] };
       var into = null;
       groups.forEach(function (g) {
-        if (!into && overlap(g, box) >= 0.5) into = g;
+        if (!into && sameSize(g, box) && overlap(g, box) >= 0.5) into = g;
       });
       if (into) {
         into.x0 = Math.min(into.x0, box.x0);
@@ -262,7 +267,7 @@
     // קבוצות שהתרחבו תוך כדי ועכשיו חופפות — מאוחדות בדיעבד
     for (var i = 0; i < groups.length; i++) {
       for (var j = groups.length - 1; j > i; j--) {
-        if (overlap(groups[i], groups[j]) >= 0.5) {
+        if (sameSize(groups[i], groups[j]) && overlap(groups[i], groups[j]) >= 0.5) {
           groups[i].x0 = Math.min(groups[i].x0, groups[j].x0);
           groups[i].x1 = Math.max(groups[i].x1, groups[j].x1);
           groups[i].lines = groups[i].lines.concat(groups[j].lines);
@@ -315,16 +320,31 @@
     var zoneOfLine = new Map();
     lines.forEach(function (ln) { zoneOfLine.set(ln, classify(ln, gb, side, gsize)); });
     // כותרות המדורים ("מסורת הש"ס", "תורה אור השלם") מודפסות בגופן גדול
-    // מגוף המדור, ולכן מבחן הגודל מפספס אותן — מצרפים לפי הכלה בטור
+    // מגוף המדור, ולכן מבחן הגודל מפספס אותן — מצרפים לפי הכלה בטור.
+    // הרצועה נבנית רק מאשכולות צרים שצמודים לשולי הדף: הפניות זעירות
+    // בתוך גוף התוספות (כמו "(ג"י שם)") מסווגות אף הן כשוליים לפי
+    // הגודל, ובלי הסינון הן היו מותחות את הרצועה עד אמצע הדף — והכלה
+    // בה הייתה בולעת עמודה ראשית שלמה לתוך השוליים.
+    var pageW = parseFloat(d.style.width) ||
+                (d.querySelector('.ln') ? 643.58 : 643.58);
+    var marginBands = [];
     ['margin-left', 'margin-right'].forEach(function (side2) {
       var cols = lines.filter(function (l) { return zoneOfLine.get(l) === side2; });
       if (!cols.length) return;
-      var lo = Math.min.apply(null, cols.map(function (l) { return num(l, 'x0'); })) - 2;
-      var hi = Math.max.apply(null, cols.map(function (l) { return num(l, 'x1'); })) + 2;
-      lines.forEach(function (l) {
-        var z = zoneOfLine.get(l);
-        if ((z === 'rashi' || z === 'tosafot') &&
-            num(l, 'x0') >= lo && num(l, 'x1') <= hi) zoneOfLine.set(l, side2);
+      splitColumns(cols).forEach(function (g) {
+        if (g.x1 - g.x0 > 0.25 * pageW) return;              // רחב מדי לטור שוליים
+        var edge = side2 === 'margin-left'
+          ? g.x0 <= 0.2 * pageW : g.x1 >= 0.8 * pageW;       // צמוד לשול הדף
+        if (!edge) return;
+        var band = { side: side2, lo: g.x0 - 2, hi: g.x1 + 2 };
+        marginBands.push(band);
+        lines.forEach(function (l) {
+          var z = zoneOfLine.get(l);
+          if ((z === 'rashi' || z === 'tosafot') &&
+              num(l, 'x0') >= band.lo && num(l, 'x1') <= band.hi) {
+            zoneOfLine.set(l, side2);
+          }
+        });
       });
     });
     var byZone = {};
@@ -338,6 +358,36 @@
       (byZone[z] = byZone[z] || []).push(ln);
     });
     var zoneNames = ZONES.slice();
+
+    // איחוי אחרי הפיצול: אשכול זעיר (סימוני אות והפניות, עד 2 שורות)
+    // או אשכול דיבורי-פתיחה (גופן ≥1.35 מגוף העמודה) מתאחה לעמודת
+    // הגוף שהוא חופף — הם חלק מזרימת הקריאה שלה, לא עמודה עצמאית.
+    // גבולות העמודה אינם מורחבים על ידם, כדי שמדד החפיפה יישאר נקי.
+    function reattach(cs) {
+      if (cs.length < 2) return cs;
+      var bodySz = cs.slice().sort(function (a, b) {
+        return b.lines.length - a.lines.length;
+      })[0].size;
+      for (var i = cs.length - 1; i >= 0 && cs.length > 1; i--) {
+        var c = cs[i];
+        var tiny = c.lines.length <= 2;
+        var opener = c.size >= 1.35 * bodySz;
+        if (!tiny && !opener) continue;
+        var best = null, bo = 0;
+        cs.forEach(function (g) {
+          if (g === c || g.lines.length <= 2) return;
+          var inter = Math.min(c.x1, g.x1) - Math.max(c.x0, g.x0);
+          var ov = inter / (c.x1 - c.x0);
+          if (ov > bo) { bo = ov; best = g; }
+        });
+        if (best && bo >= 0.6) {
+          best.lines = best.lines.concat(c.lines);
+          cs.splice(i, 1);
+        }
+      }
+      return cs;
+    }
+
     // גם אזורי רש"י ותוספות עשויים להכיל עמודה פיזית נוספת — מדור
     // שוליים הכתוב בכתב רש"י בגודל מלא (תוספות רי"ד, מהרש"א וכו'),
     // שמבחן-הגודל של השוליים מפספס. בלי הפיצול, סדר הקריאה שוזר את
@@ -346,7 +396,7 @@
     // כ"מסביב" ומוסתרות עם כפתור העין.
     ['rashi', 'tosafot'].forEach(function (z) {
       if (!byZone[z] || byZone[z].length < 2) return;
-      var cs = splitColumns(byZone[z]);
+      var cs = reattach(splitColumns(byZone[z]));
       if (cs.length < 2) return;
       cs.sort(function (a, b) { return b.lines.length - a.lines.length; });
       byZone[z] = cs[0].lines;
@@ -357,7 +407,7 @@
     });
     // התחתית מפוצלת לעמודות — כל מדור צדדי נעשה אזור נפרד (bottom-1…)
     if (byZone.bottom && byZone.bottom.length > 1) {
-      var cols = splitColumns(byZone.bottom);
+      var cols = reattach(splitColumns(byZone.bottom));
       if (cols.length > 1) {
         cols.sort(function (a, b) { return b.lines.length - a.lines.length; });
         byZone.bottom = cols[0].lines;
@@ -447,11 +497,11 @@
       units.push(unitOf(byZone[z], 'surround'));
       byZone[z].forEach(function (l) { l.classList.add('surround'); });
     });
-    // כותרות המדורים בראש הדף — בתוך רצועת ה-x של אחד השוליים
+    // כותרות המדורים בראש הדף — בתוך רצועת ה-x של טור שוליים אמיתי
+    // (הרצועות המסוננות בלבד — לא היקף הזון כולו, שעלול להיות רחב)
     if (byZone.header) byZone.header.forEach(function (l) {
-      var inBand = units.some(function (u) {
-        return u.family === 'surround' &&
-               num(l, 'x0') >= u.x0 - 12 && num(l, 'x1') <= u.x1 + 12;
+      var inBand = marginBands.some(function (b) {
+        return num(l, 'x0') >= b.lo - 12 && num(l, 'x1') <= b.hi + 12;
       });
       if (inBand) l.classList.add('surround');
     });
@@ -473,7 +523,11 @@
         // המשך אמיתי כתוב באותו גוף-כתב; מדור חדש (רב נסים גאון —
         // 6.7 מול 11.2 של תוספות) נפסל גם כשהוא צמוד וחופף.
         if (Math.abs(col.body - u.body) > 1.5) return;
-        var ov = (Math.min(col.x1, u.x1) - Math.max(col.x0, u.x0)) / w;
+        // החפיפה נמדדת יחסית לצר מבין השניים: המשך של עמודה מתרחב
+        // לרוחב מלא ברגע שנגמרות העמודות שלצדו, והחפיפה יחסית אליו
+        // עצמו הייתה יורדת מתחת לסף למרות שההורה חופף לו במלואו.
+        var inter = Math.min(col.x1, u.x1) - Math.max(col.x0, u.x0);
+        var ov = inter / Math.max(1, Math.min(w, u.x1 - u.x0));
         if (ov >= 0.55 && ov > bestOv) { bestOv = ov; best = u; }
       });
       col.family = best ? best.family : 'surround';
