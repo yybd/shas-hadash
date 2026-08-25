@@ -1,0 +1,300 @@
+<html>
+
+<head>
+
+	<!-- מאפשר צביטה להגדלה (הדף צפוף, וזו דרך הקריאה הטבעית בנייד),
+	     ו-viewport-fit=cover כדי לנצל את המסך גם במכשירים עם מגרעת -->
+	<meta name="viewport"
+		content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover" />
+	<meta content="yes" name="apple-mobile-web-app-capable" />
+
+	<meta charset="utf-8" />
+	<title>תלמוד בבלי — ש״ס חדש</title>
+
+	<script src="code/js/jquery-3.6.0.min.js"></script>
+	<script src="code/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="code/css/bootstrap.min.css">
+	<link rel="stylesheet" href="code/css/bootstrap-icons.css">
+
+
+	<link href="code/css/default.css?v=32" type="text/css" rel="stylesheet" />
+
+	<!-- העיצוב והלוגיקה של דפי הש"ס החדש; התוכן מוזרק ישירות לדף -->
+	<link href="daf/assets/fonts.css?v=4" type="text/css" rel="stylesheet" />
+	<link href="daf/assets/daf.css?v=10" type="text/css" rel="stylesheet" />
+	<script src="daf/assets/daf.js?v=24" defer></script>
+
+	<script src="code/js/mefarshim.js"></script>
+	<script src="code/js/default.js?v=29"></script>
+	<!-- הגשר לאפליקציות מארחות (תלמוד AI) — משדר בחירות להורה
+	     ב-postMessage; שקט לחלוטין כשאין מי שמאזין -->
+	<script src="code/js/ai-bridge.js?v=6" defer></script>
+
+
+
+
+</head>
+
+<body onload="start()">
+
+	<div class="container-fluid px-2">
+
+		<div class="row p-2 align-items-center" id="num1">
+			<!-- Right Group: Menu Buttons -->
+			<div class="col-auto d-flex align-items-center">
+				<!-- Mobile Toggle -->
+				<div class="px-2 d-lg-none" id="list-toggle-bt" onclick="toggleDafList()" style="cursor: pointer;">
+					<i class="bi bi-list-ul" style="font-size: 2rem"></i>
+				</div>
+
+				<!-- Masechet Book -->
+				<div class="px-2" id="masechet" data-bs-toggle="modal" data-bs-target="#exampleModal"
+					style="cursor: pointer;">
+					<i class="bi bi-book " style="font-size: 2rem"></i>
+				</div>
+
+				<!-- Bookmark (Mefarshim) -->
+				<div class="px-2" id="mefarshim-bt" data-bs-toggle="modal" data-bs-target="#staticBackdrop"
+					style="cursor: pointer;">
+					<i class="bi bi-blockquote-right" style="font-size: 2rem"></i>
+				</div>
+
+				<!-- הצגה/הסתרה של המפרשים שמסביב לגפ"ת (שוליים ותחתית) -->
+				<div class="px-2" id="surround-bt" onclick="toggleSurround()"
+					style="cursor: pointer;" title="הצגה/הסתרה של המפרשים שמסביב">
+					<i class="bi bi-eye" style="font-size: 2rem"></i>
+				</div>
+
+				<!-- תג גרסת המציג — מזהה חד-משמעית איזו גרסה רצה -->
+				<span id="daf-ver" style="font-size: .7rem; color: #aaa; align-self: flex-end;"></span>
+
+			</div>
+
+			<!-- Left/Center Group: Navigation & Zoom -->
+			<div class="col d-flex justify-content-end align-items-center">
+				<!-- Back (Right Arrow) -->
+				<div class="px-2" id="back" onclick="back()" style="cursor: pointer;">
+					<i class="bi bi-chevron-right" style="font-size: 1.8rem"></i>
+				</div>
+
+				<!-- Zoom Controls -->
+				<div id="pdf-controls" class="px-2">
+					<button class="btn  btn-sm" onclick="zoomOut()"><i class="bi bi-zoom-out"></i></button>
+					<button class="btn  btn-sm" onclick="zoomIn()"><i class="bi bi-zoom-in"></i></button>
+				</div>
+
+				<!-- Next (Left Arrow) -->
+				<div class="px-2" id="next" onclick="next()" style="cursor: pointer;">
+					<i class="bi bi-chevron-left" style="font-size: 1.8rem"></i>
+				</div>
+			</div>
+
+			<!-- Modals (kept in structure but hidden until triggered) -->
+			<!-- Modal Masechet -->
+			
+
+			<!-- Modal Mefarshim (Restored) -->
+			
+		</div>
+
+		<div class="row g-0" id="main-content-row">
+			<div class="col-2 col-lg-1 text-center d-none d-lg-block" id="col-daf">
+				<ul class="daf" id="bar-daf"></ul>
+			</div>
+
+			<div class="col-12 col-lg-11 text-center" style="position: relative;">
+				<!-- PDF Container -->
+				<div id="canvas-container"
+					style="overflow: auto; -webkit-overflow-scrolling: touch; text-align: center;">
+					<div id="pdf-wrapper" style="position: relative; display: inline-block;">
+						<div id="the-daf"></div>
+						<div id="book-effect-overlay"
+							style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;">
+						</div>
+					</div>
+				</div>
+			</div>
+			<div hidden></div>
+		</div>
+
+	</div>
+
+	<!-- החלוניות יושבות ישירות ב-body: סרגל הכלים הדביק יוצר
+	     הקשר-ערימה, ובתוכו הרקע האפור של המודל היה מכסה אותו -->
+	<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel"
+				aria-hidden="true">
+				<div class="modal-dialog modal-xl">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<table class="shas" id="shas">
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+	<div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+				aria-labelledby="staticBackdropLabel" aria-hidden="true">
+				<div class="modal-dialog modal-xl modal-dialog-scrollable custom-full-width">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+							<span class="headerMf" id="title-daf-mefaresh"></span>
+							<i class="headerMf bi bi-chevron-right " style="font-size: 2rem" onclick="backMf()"></i>
+							<i class="headerMf bi bi-chevron-left " style="font-size: 2rem" onclick="nextMf()"></i>
+						</div>
+						<div class="modal-body">
+							<table class="list-mefarshim" id="list-mefarshim">
+								<!-- Recreating 10 rows as per previous file state -->
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+									<td></td>
+								</tr>
+							</table>
+							<div id="con-mefares"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+</body>
+
+</html>

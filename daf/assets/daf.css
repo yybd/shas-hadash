@@ -1,0 +1,75 @@
+/* daf.css — עיצוב משותף לדפי צורת-הדף (נפרד מהמנוע והדפים שנוצרים) */
+
+/* רק כשהדף נפתח כקובץ עצמאי; בהזרקה לאפליקציה אין לגעת ב-body שלה */
+body.daf-standalone {
+  background: #e8e2d5; margin: 0; display: flex; justify-content: center;
+}
+body.daf-standalone .daf-page { margin: 16px 0; }
+
+.daf-page {
+  position: relative; width: var(--page-w); height: var(--page-h);
+  background: #fdfaf2; box-shadow: 0 2px 14px rgba(0, 0, 0, .25);
+  direction: rtl; overflow: hidden;
+}
+
+.ln {
+  position: absolute; direction: rtl; unicode-bidi: isolate; color: #1a1a1a;
+  /* הרווחים שבין הריצות הם צמתי טקסט: white-space:pre מונע את קריסתם
+     (הריצות עצמן מחוץ לזרימה), ו-font-size זעיר הופך אותם לבלתי נראים
+     אך משאיר אותם בהעתקה ובחיפוש */
+  font-size: 1px;
+  white-space: pre;
+}
+.w {
+  position: absolute; top: 0; white-space: pre; display: inline-block;
+  line-height: 1.08;            /* אחיד לכל הריצות — לא נכתב בכל אחת */
+  transform-origin: right center;
+}
+
+/* הקישוט המפריד — הגליף המקורי מהדפוס */
+span.f-or { font-family: 'ShasOrnament', serif; }
+
+/* גופנים — הפונטים המקוריים שחולצו מה-PDF, עם fallback לפונטי ה-web */
+span.f-sq { font-family: 'ShasSquare', 'GuttmanVilna', 'Times New Roman', serif; }
+span.f-sqs { font-family: 'ShasSquareSm', 'GuttmanVilna', 'Times New Roman', serif; }
+span.f-rs { font-family: 'ShasRashi', 'RashiBD', serif; }
+span.f-rss { font-family: 'ShasRashiSm', 'RashiBD', serif; }
+span.f-dh { font-family: 'ShasDHBig', 'GuttmanVilna', serif; }
+span.f-bd { font-family: 'ShasBold', 'RashiBD', serif; }
+span.f-to { font-family: 'ShasTorahOr', 'GuttmanVilna', serif; }
+span.f-or { font-family: 'ShasOrnament', serif; }
+/* דיבור המתחיל */
+.w[data-dh] { font-weight: bold; }
+
+/* ד"ה של תוספות מודפס בוילנא בכתב מרובע, אך ב-PDF הוא מקודד ככתב
+   רש"י — ההחלפה נעשית כאן ולא בנגיעה ב-DOM */
+.ln[data-zone="tosafot"] .w[data-dh] {
+  font-family: 'ShasDHBig', 'GuttmanVilna', serif;
+}
+
+/* בחירת מקטע שלם */
+span[data-seg] { cursor: pointer; }
+span.seghov { background: #f7f0cd; border-radius: 2px; }
+span.seghl { background: #f5e59a; border-radius: 2px; }
+
+/* כפתור העין — הסתרת כל מה שמסביב לגפ"ת: השוליים והמשכיהם, המדורים
+   העצמאיים שבתחתית, וכותרות המדורים. ‎[data-surround] נצרב בזמן-בנייה. */
+.daf-page.hide-surround .ln[data-surround] { visibility: hidden; }
+
+/* לחיצה בוחרת מקטע שלם, גרירה בוחרת חלק ממנו (ראה daf.js). הבחירה
+   המובנית של הדפדפן כבויה בדף כדי שלא תתחרה בהן. */
+.daf-page { -webkit-user-select: none; user-select: none; }
+
+/* בחירה חלקית: הקטע שנגרר מודגש, ושאר המקטע מסומן קלושות — כך גבול
+   הגרירה (שמעבר לו אי אפשר לגרור) גלוי לעין */
+span.selhl { background: #cddcf3; border-radius: 2px; }
+span.segdim { background: #f6f1dc; border-radius: 2px; }
+
+/* הסתרת שכבות — Daf.hide('rashi') וכו' */
+.daf-page.hide-gemara       .ln[data-zone="gemara"]       { visibility: hidden; }
+.daf-page.hide-rashi        .ln[data-zone="rashi"]        { visibility: hidden; }
+.daf-page.hide-tosafot      .ln[data-zone="tosafot"]      { visibility: hidden; }
+.daf-page.hide-header       .ln[data-zone="header"]       { visibility: hidden; }
+.daf-page.hide-margin-left  .ln[data-zone="margin-left"]  { visibility: hidden; }
+.daf-page.hide-margin-right .ln[data-zone="margin-right"] { visibility: hidden; }
+.daf-page.hide-bottom       .ln[data-zone="bottom"]       { visibility: hidden; }
