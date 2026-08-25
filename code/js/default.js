@@ -116,13 +116,32 @@ function start() {
 
 
 
+// ששת הסדרים, לפי הסדר של טבלת talmud שמעליה. בבורר המסכתות הם
+// מובחנים במשקל האות — סדר אחד מודגש, הבא אחריו רגיל, וחוזר חלילה.
+// כך גבולות הסדרים נראים לעין בלי להוסיף כותרות שיפרקו את רשת
+// הבחירה בת חמש העמודות. הספירה חייבת להסתכם במספר המסכתות שבטבלה.
+var SEDARIM = [
+    ["זרעים", 1], ["מועד", 12], ["נשים", 7],
+    ["נזיקין", 8], ["קדשים", 11], ["טהרות", 1],
+];
+
+// אינדקס הסדר של מסכת, לפי מיקומה בטבלה
+function sederOf(masechetIndex) {
+    var upto = 0;
+    for (var s = 0; s < SEDARIM.length; s++) {
+        upto += SEDARIM[s][1];
+        if (masechetIndex < upto) return s;
+    }
+    return SEDARIM.length - 1;
+}
+
 function tableTalmud() {
 
     var row = 0;
     var cols = 0;
     var len = talmud.length;
     for (var i = 0; i < len; i++) {
-        makeDir("cal", i, talmud[i][0], function () {
+        var cell = makeDir("cal", i, talmud[i][0], function () {
             //window.location.assign("masechet.html?no=" + this.id);
             //showDivDaf(this.id);
             loadMasechet(this.id, 0);
@@ -130,6 +149,9 @@ function tableTalmud() {
             $('#exampleModal').modal('hide');
 
         }, cols, row, "shas")
+        var sd = sederOf(i);
+        cell.classList.add(sd % 2 ? "seder-b" : "seder-a");
+        cell.title = "סדר " + SEDARIM[sd][0];
 
         cols++;
         if (cols == 5) { row++; cols = 0; }
