@@ -437,9 +437,17 @@ def dom_size(lines):
 
 
 def unit_of(lines, flow):
-    return {'x0': min(l.x0 for l in lines), 'x1': max(l.x1 for l in lines),
-            'top': min(l.top for l in lines), 'bot': max(l.top for l in lines),
-            'flow': flow, 'body': dom_size(lines)}
+    x0 = min(l.x0 for l in lines)
+    x1 = max(l.x1 for l in lines)
+    bot = max(l.top for l in lines)
+    # "מילוי" — כמה מרוחב העמודה תופסת שורתה האחרונה. פסקה שהסתיימה
+    # מותירה שורה קצרה; עמודה שנגמר לה המקום נחתכת בשורה מלאה, והטקסט
+    # שלה ממשיך הלאה. זה המבדיל כששתי עמודות נגמרות באותו גובה.
+    last = [l for l in lines if abs(l.top - bot) < 2]
+    lw = max(l.x1 for l in last) - min(l.x0 for l in last)
+    return {'x0': x0, 'x1': x1, 'top': min(l.top for l in lines), 'bot': bot,
+            'flow': flow, 'body': dom_size(lines),
+            'fill': lw / max(1.0, x1 - x0)}
 
 
 def chain_columns(cols, units, gsize):
@@ -468,11 +476,14 @@ def chain_columns(cols, units, gsize):
             ov = inter / max(1, min(w, prev['x1'] - prev['x0']))
             if ov < 0.55:
                 continue
-            # הקרוב אנכית מנצח, והחפיפה רק שוברת שוויון. רצועה ברוחב
-            # מלא בולעת אופקית גם טור צר שאינו שייך לה, ולכן חפיפה לבדה
-            # הייתה מצרפת אותה לטור השגוי; הטור שגלש הוא זה שהגיע הכי
-            # נמוך — הוא שנגמר לו המקום בדיוק לפני תחילת הרצועה.
-            key = (gap, -ov)
+            # סדר ההכרעה: קרבה אנכית, ואז "מי עוד רץ", ואז חפיפה.
+            # החפיפה לבדה מצרפת לטור השגוי, כי רצועה ברוחב מלא בולעת
+            # אופקית גם טור שאינו שייך לה. גם הקרבה לבדה אינה מספיקה:
+            # כששתי עמודות נגמרות באותו גובה (רצועה מלאה שהופכת לרוחב
+            # מלא), ההפרש ביניהן הוא פיקסלים בודדים ומקרי. המכריע אז
+            # הוא המילוי — העמודה שנחתכה בשורה מלאה היא זו שהטקסט שלה
+            # נמשך, ואילו זו שסיימה בשורה קצרה כבר תמה.
+            key = (round(gap / max(1.0, gsize)), -prev.get('fill', 0), -ov)
             if best_key is None or key < best_key:
                 best_key, best = key, prev
         u['flow'] = best['flow'] if best else None
