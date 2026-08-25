@@ -374,6 +374,42 @@ def split_columns(lines, page_lines=None):
                     del groups[ti]
                     break
         ti -= 1
+    # קטע פנימי בגופן אחר — הגהה, תוספת בסוגריים, ציטוט בכתב זעיר —
+    # קוטע את העמודה לשלושה אשכולות: מעליו, הוא עצמו, ומתחתיו. מבחן
+    # הגודל מפריד אותו ומבחן הרציפות מונע מהחלקים להתאחות דרכו, ואז
+    # הוא נעשה עמודה עצמאית, מתויג "מסביב", ונעלם עם כפתור העין.
+    # הסימן שזהו קטע פנימי ולא מדור עצמאי הוא ה"כריך": העמודה המקורית
+    # חוזרת אחריו — שני אשכולות באותו גודל ובאותו תחום x, אחד מעליו
+    # ואחד מתחתיו. מדור עצמאי (רב נסים גאון וכד') אינו כריך, שכן אחריו
+    # לא שבה העמודה שמעליו.
+    merged = True
+    while merged:
+        merged = False
+        for b in groups:
+            btop = min(l.top for l in b['lines'])
+            bbot = max(l.top for l in b['lines'])
+            above = below = None
+            for g in groups:
+                if g is b or _overlap_union(g, b) < 0.5:
+                    continue
+                gt = [l.top for l in g['lines']]
+                if max(gt) <= btop and (above is None or max(gt) >
+                                        max(l.top for l in above['lines'])):
+                    above = g
+                if min(gt) >= bbot and (below is None or min(gt) <
+                                        min(l.top for l in below['lines'])):
+                    below = g
+            if above is None or below is None or above is below:
+                continue
+            if not same_size(above, below):
+                continue
+            above['x0'] = min(above['x0'], b['x0'], below['x0'])
+            above['x1'] = max(above['x1'], b['x1'], below['x1'])
+            above['lines'] += b['lines'] + below['lines']
+            groups[:] = [g for g in groups if g is not b and g is not below]
+            merged = True
+            break
+
     return groups
 
 
@@ -1038,6 +1074,7 @@ def analyze_page(html, size_hint=None):
     # שיושבות בתוכם גיאומטרית (כמו ב-daf.js). הרצועות נשמרות כדי לסמן
     # בהמשך גם את כותרות המדורים שבראש הדף כ"מסביב".
     page['bands'] = []
+    banded = set()
     for mside in ('margin-left', 'margin-right'):
         cols = [l for l in lines if l.zone == mside]
         if not cols:
@@ -1051,10 +1088,27 @@ def analyze_page(html, size_hint=None):
                 continue
             lo, hi = g['x0'] - 2, g['x1'] + 2
             page['bands'].append((lo, hi))
+            banded.add(mside)
             for l in lines:
                 if l.zone in ('rashi', 'tosafot') and \
                         lo <= l.x0 and l.x1 <= hi:
                     l.zone = mside
+
+    # והכיוון ההפוך: השוליים הם רצועות בשולי הדף, ומבחן הגודל לבדו
+    # מזהה אותם רק בקירוב — בלוק קטן בתוך טור הפירוש (הגהה, תוספת
+    # בסוגריים) נופל מתחת לסף ומוגלה לשוליים, ומשם הוא מתויג "מסביב"
+    # ונעלם עם כפתור העין. בכתובות יז. הפרש הגדלים היה 0.005 נקודה.
+    # שורה שסווגה שוליים אך אינה יושבת באף רצועה אמיתית חוזרת לטור
+    # שהיא בתוכו. נבדק רק בצד שבו נמצאה רצועה: אם הזיהוי נכשל שם
+    # לגמרי, עדיף להשאיר כמות שהיה מאשר להציף את הגפ"ת בשוליים.
+    for l in lines:
+        if l.zone not in banded:
+            continue
+        if any(lo - 12 <= l.x0 and l.x1 <= hi + 12
+               for lo, hi in page['bands']):
+            continue
+        right = (l.x0 + l.x1) / 2 > (gb['x0'] + gb['x1']) / 2
+        l.zone = 'rashi' if (side == 'right') == right else 'tosafot'
 
     by_zone = {}
     for ln in lines:
