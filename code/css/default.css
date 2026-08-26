@@ -415,7 +415,9 @@ label {
     padding-right: .45rem !important;
   }
 
-  #num1 i {
+  /* אייקוני הפעולה בלבד — כולם יושבים ב-.px-2. משולש בורר המסכתות
+     אינו אייקון פעולה אלא חלק מהכפתור, וגודלו נגזר מהטקסט שלצדו. */
+  #num1 .px-2 i {
     font-size: 1.5rem !important;
   }
 
@@ -521,3 +523,103 @@ label {
    בריחוף (title). התיוג נעשה ב-tableTalmud (ראה SEDARIM). */
 #shas .cal.seder-a { font-weight: 700; }
 #shas .cal.seder-b { font-weight: 400; }
+
+/* ── בורר המסכתות ───────────────────────────────────────────────────
+   כפתור אחד במרכז סרגל הכלים, מעל הדף: שם המסכת הנבחרת ומשולש הפוך.
+   קודם היה אייקון של ספר בקצה הימני — שם המסכת לא הופיע בשום מקום
+   בממשק, ורק כותרת הלשונית העידה עליו. */
+.masechet-pick {
+	display: inline-flex;
+	align-items: center;
+	gap: .4rem;
+	max-width: 100%;
+	padding: .18rem .7rem;
+	font-size: 1.15rem;
+	line-height: 1.5;
+	color: inherit;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: .35rem;
+	cursor: pointer;
+}
+
+.masechet-pick:hover,
+.masechet-pick:focus-visible {
+	border-color: rgba(0, 0, 0, .18);
+	background: rgba(0, 0, 0, .03);
+}
+
+#masechet-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.masechet-pick .bi-caret-down-fill {
+	font-size: .62em;
+	opacity: .55;
+}
+
+/* עוגן המרכוז. בנייד ‏#num1 כבר position:sticky (סרגל כלים דביק),
+   שהוא עצמו בלוק-מכיל — ולכן relative רק מהרוחב שבו אינו דביק,
+   אחרת היינו דורסים את הדביקות. */
+@media (min-width: 992px) {
+	#num1 {
+		position: relative;
+	}
+}
+
+.masechet-col {
+	position: absolute;
+	/* פיזי ולא לוגי במכוון — המרכז הוא המרכז בשני הכיוונים */
+	left: 50%;
+	transform: translateX(-50%);
+	/* ‏flex ולא block: בלעדיו העמודה ממורכזת אך הכפתור נצמד לקצה שלה */
+	display: flex;
+	justify-content: center;
+	max-width: 46%;
+	z-index: 1;
+}
+
+.toolbar-side {
+	flex-wrap: nowrap;
+}
+
+/* כפתורי הזום נערמו זה על זה בנייד — שני inline-block בתוך div צר
+   מדי. אינו קשור לבורר, אבל ניכר בגובה השורה שנגרע מהדף. */
+#pdf-controls {
+	white-space: nowrap;
+}
+
+/* מרכוז אמיתי מחייב ששני הצדדים יהיו שווי-רוחב, ולכן תוכן שאינו נכנס
+   לחצי-שורה דוחק את הכפתור. במסכים צרים מצמצמים את הצדדים במקום
+   לוותר על המרכוז: תג הגרסה הוא כלי אבחון ואינו נחוץ בנייד, וריווח
+   האייקונים מתהדק. נבדק עד 320px — הרוחב הצר ביותר שעוד בשימוש. */
+@media (max-width: 991.98px) {
+	#daf-ver {
+		display: none;
+	}
+}
+
+@media (max-width: 575.98px) {
+	.masechet-pick {
+		padding: .18rem .35rem;
+		font-size: 1rem;
+	}
+
+	#num1 .px-2 {
+		padding-left: .3rem !important;
+		padding-right: .3rem !important;
+	}
+}
+
+/* בטלפונים אין מקום לשבעת הכפתורים ולשם המסכת גם יחד: הקבוצה
+   השמאלית לבדה רחבה מחצי השורה הפנוי, וחפפה את הבורר. כפתורי הזום
+   הם מה שיורד — הם 89 מתוך 156 הפיקסלים שלה, והדף ממילא נזום
+   בצביטה במגע (viewport עם maximum-scale=5 ו-setupPinchZoom).
+   בטאבלט ומעלה הם נשארים. */
+@media (max-width: 575.98px) {
+	#pdf-controls {
+		display: none;
+	}
+}

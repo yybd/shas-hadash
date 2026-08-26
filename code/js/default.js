@@ -306,6 +306,12 @@ function applyDafScale() {
 function loadDaf(n_masechet, n_daf) {
     thisMasechet = n_masechet;
     thisDaf = n_daf;
+
+    // תווית בורר המסכתות. נקבעת כאן ולא ב-loadMasechet כי loadDaf הוא
+    // המסלול היחיד שעובר בכל טעינת דף — גם בדילוג בתוך אותה מסכת.
+    var pick = document.getElementById('masechet-name');
+    if (pick) pick.textContent = talmud[n_masechet][0];
+
     localStorage.setItem('thisDaf', thisDaf);
 
     if (n_daf == 0) { $(".bi-chevron-right").show(); }

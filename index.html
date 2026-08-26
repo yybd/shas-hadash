@@ -17,7 +17,7 @@
 	<link rel="stylesheet" href="code/css/bootstrap-icons.css">
 
 
-	<link href="code/css/default.css?v=33" type="text/css" rel="stylesheet" />
+	<link href="code/css/default.css?v=34" type="text/css" rel="stylesheet" />
 
 	<!-- העיצוב והלוגיקה של דפי הש"ס החדש; התוכן מוזרק ישירות לדף -->
 	<link href="daf/assets/fonts.css?v=4" type="text/css" rel="stylesheet" />
@@ -25,7 +25,7 @@
 	<script src="daf/assets/daf.js?v=24" defer></script>
 
 	<script src="code/js/mefarshim.js"></script>
-	<script src="code/js/default.js?v=30"></script>
+	<script src="code/js/default.js?v=31"></script>
 	<!-- הגשר לאפליקציות מארחות (תלמוד AI) — משדר בחירות להורה
 	     ב-postMessage; שקט לחלוטין כשאין מי שמאזין -->
 	<script src="code/js/ai-bridge.js?v=6" defer></script>
@@ -41,16 +41,10 @@
 
 		<div class="row p-2 align-items-center" id="num1">
 			<!-- Right Group: Menu Buttons -->
-			<div class="col-auto d-flex align-items-center">
+			<div class="col-auto d-flex align-items-center toolbar-side">
 				<!-- Mobile Toggle -->
 				<div class="px-2 d-lg-none" id="list-toggle-bt" onclick="toggleDafList()" style="cursor: pointer;">
 					<i class="bi bi-list-ul" style="font-size: 2rem"></i>
-				</div>
-
-				<!-- Masechet Book -->
-				<div class="px-2" id="masechet" data-bs-toggle="modal" data-bs-target="#exampleModal"
-					style="cursor: pointer;">
-					<i class="bi bi-book " style="font-size: 2rem"></i>
 				</div>
 
 				<!-- Bookmark (Mefarshim) -->
@@ -70,8 +64,22 @@
 
 			</div>
 
-			<!-- Left/Center Group: Navigation & Zoom -->
-			<div class="col d-flex justify-content-end align-items-center">
+			<!-- בורר המסכתות — שם המסכת הנבחרת ומשולש הפוך.
+			     יושב מחוץ לזרימה וממורכז אבסולוטית: עמודות שוות-רוחב
+			     לא נותנות מרכוז אמיתי כאן, כי תוכן הצדדים (אייקונים
+			     בגודל קבוע) אינו מתכווץ וגלש אל תוך הכפתור. כך גם
+			     גובה השורה והצדדים נשארים כשהיו. -->
+			<div class="masechet-col">
+				<button type="button" id="masechet" class="masechet-pick"
+					data-bs-toggle="modal" data-bs-target="#exampleModal"
+					title="בחירת מסכת">
+					<span id="masechet-name"></span>
+					<i class="bi bi-caret-down-fill" aria-hidden="true"></i>
+				</button>
+			</div>
+
+			<!-- Left Group: Navigation & Zoom -->
+			<div class="col d-flex justify-content-end align-items-center toolbar-side">
 				<!-- Back (Right Arrow) -->
 				<div class="px-2" id="back" onclick="back()" style="cursor: pointer;">
 					<i class="bi bi-chevron-right" style="font-size: 1.8rem"></i>
