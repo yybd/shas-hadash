@@ -367,6 +367,21 @@ function loadDaf(n_masechet, n_daf) {
             page.style.width = DAF_W + 'px';
             page.style.height = DAF_H + 'px';
             host.innerHTML = '';
+            // כללי הגופנים של הדף יושבים ב-<head> של הקובץ, ורק .daf-page
+            // מאומץ ממנו — ולכן הם נזרקו. בדפים הישנים זה לא הזיק, כי
+            // המחלקות שלהם (f-rs, f-bd) מוגדרות ב-daf.css של המציג; הדפים
+            // החדשים נושאים מחלקות בשם הגופן (f-ShasVilna) שקיימות רק אצלם.
+            // בלעדיהן אף מילה אינה מקבלת font-family, הדפדפן לעולם אינו
+            // מבקש את גופני הש"ס, והדף כולו נופל לגופן ברירת המחדל.
+            //
+            // הנתיבים בקובץ יחסיים למיקומו (daf/<מסכת>/), ואילו סגנון מוזרק
+            // נפתר מול כתובת המסמך — ולכן ../assets מותאם ל-daf/assets.
+            doc.querySelectorAll('style').forEach(function (src) {
+                var el = document.createElement('style');
+                el.textContent = src.textContent.replace(
+                    /url\((['"]?)\.\.\/assets\//g, 'url($1daf/assets/');
+                host.appendChild(el);
+            });
             host.appendChild(document.adoptNode(page));
             if (window.Daf) Daf.build();           // סיווג אזורים ומקטעים
             applySurround();                       // מצב הסתרת המפרשים נשמר
